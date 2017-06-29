@@ -1,0 +1,80 @@
+﻿Map Reduce :
+----------------------------------------------------------------------------------------------------------------
+
+package hadoop;
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+public class MapReduceWordCount {
+ public static void main(String[] args) throws Exception {
+ Configuration config = new Configuration();
+ String[] argFiles = new GenericOptionsParser(config, args).getRemainingArgs();
+ Path inputFilePath = new Path(argFiles[0]);
+ Path outputFilePath = new Path(argFiles[1]);
+ Job mapReduceJob = new Job(config, "wordcount");
+ mapReduceJob.setJarByClass(MapReduceWordCount.class);
+ mapReduceJob.setMapperClass(MapperForWordCount.class);
+ mapReduceJob.setReducerClass(ReducerForWordCount.class);
+ mapReduceJob.setOutputKeyClass(Text.class);
+ mapReduceJob.setOutputValueClass(IntWritable.class);
+ FileInputFormat.addInputPath(mapReduceJob, inputFilePath);
+ FileOutputFormat.setOutputPath(mapReduceJob, outputFilePath);
+ System.exit(mapReduceJob.waitForCompletion(true) ? 0 : 1);
+ }
+
+ public static class MapperForWordCount extends Mapper<LongWritable, Text, Text, IntWritable> {
+ public void map(LongWritable key, Text wordText, Context context) throws IOException, InterruptedException {
+ String wordsAsString = wordText.toString();
+ String[] wordsAsArray = wordsAsString.split(",");
+ for (String word : wordsAsArray) {
+ Text hadoopText = new Text(word.toUpperCase().trim());
+ IntWritable count = new IntWritable(1);
+ context.write(hadoopText, count);
+ }
+ }
+ }
+
+ public static class ReducerForWordCount extends Reducer<Text, IntWritable, Text, IntWritable> {
+ public void reduce(Text word, Iterable<IntWritable> values, Context context)
+ throws IOException, InterruptedException {
+ int CountOfWords = 0;
+ for (IntWritable value : values) {
+ CountOfWords += value.get();
+ }
+ context.write(word, new IntWritable(CountOfWords));
+ }
+ }
+}
+
+
+Map Reduce (2) :
+----------------------------------------------------------------------------------------------------------------
+
+[practice@localhost ~]$ hadoop fs -put wordCountInput wordCountInput
+
+
+Map Reduce (3) :
+----------------------------------------------------------------------------------------------------------------
+
+[practice@localhost ~]$ hadoop jar HadoopMapReduceDemo.jar hadoop. MapReduceWordCount wordCountInput wordCountOutput
+
+
+Map Reduce (4):
+----------------------------------------------------------------------------------------------------------------
+
+[practice @localhost ~]$ hadoop fs -cat wordCountOutput/part-r-00000
+  BEAR    2
+  CAR     3
+  DEER    2
+  RIVER   2

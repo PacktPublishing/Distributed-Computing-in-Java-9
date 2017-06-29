@@ -1,0 +1,280 @@
+﻿Writing distributed application on Amazon Web Service :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.services.simpleworkflow.flow.annotations.Activities;
+import com.amazonaws.services.simpleworkflow.flow.annotations.ActivityRegistrationOptions;
+
+@ActivityRegistrationOptions(defaultTaskScheduleToStartTimeoutSeconds = 300,
+                             defaultTaskStartToCloseTimeoutSeconds = 10)
+@Activities(version="1.0")
+public interface SWFActivities {
+
+   public String getName();
+   public String getMessage(String name);
+   public void printMessage(String message);
+
+}
+
+
+Writing distributed application on Amazon Web Service (2) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+public class SWFActivitiesImpl implements SWFActivities {
+
+       @Override
+       public String getName() {
+          return "Raja";
+       }
+
+       @Override
+       public String getMessage(String name) {
+          return "Hello " + name;
+       }
+
+       @Override
+       public void printMessage(String message) {
+          System.out.println(message);
+       }
+
+    }
+
+
+Writing distributed application on Amazon Web Service (3) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.services.simpleworkflow.flow.annotations.Execute;
+import com.amazonaws.services.simpleworkflow.flow.annotations.Workflow;
+import com.amazonaws.services.simpleworkflow.flow.annotations.WorkflowRegistrationOptions;
+
+@Workflow
+@WorkflowRegistrationOptions(defaultExecutionStartToCloseTimeoutSeconds = 3600)
+public interface SWFWorkflow {
+
+   @Execute(version = "1.0")
+   public void message();
+
+}
+
+
+Writing distributed application on Amazon Web Service (4) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.services.simpleworkflow.flow.core.Promise;
+
+public class SWFWorkflowImpl implements SWFWorkflow {
+
+   private SWFActivities activites = new SWFActivitiesImpl();
+
+@Override
+public void message() {
+    Promise<String> name = activites.getName();
+    Promise<String> greeting = activites.getGreeting(name);
+    activites.say(greeting);
+}
+
+}
+
+
+Writing distributed application on Amazon Web Service (5) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+import com.amazonaws.services.simpleworkflow.flow.ActivityWorker;
+import com.amazonaws.services.simpleworkflow.flow.WorkflowWorker;
+
+public class SWFWorker  {
+
+   public static void main(String[] args) throws Exception {
+     ClientConfiguration config = new ClientConfiguration().withSocketTimeout(70*1000);
+     String swfAccessId = System.getenv("AWS_ACCESS_KEY_ID");
+     String swfSecretKey = System.getenv("AWS_SECRET_KEY");
+     AWSCredentials awsCredentials = new BasicAWSCredentials(swfAccessId, swfSecretKey);
+     AmazonSimpleWorkflow service = new AmazonSimpleWorkflowClient(awsCredentials, config);
+     service.setEndpoint("https://swf.sampleworkflow.com");
+     String domain = "helloWorldWalkthrough";
+     String taskListToPoll = "HelloWorldList";
+
+     ActivityWorker aw = new ActivityWorker(service, domain, taskListToPoll);
+     aw.addActivitiesImplementation(new SWFActivitiesImpl());
+     aw.start();
+     WorkflowWorker wfw = new WorkflowWorker(service, domain, taskListToPoll);
+     wfw.addWorkflowImplementationType(SWFWorkflowImpl.class);
+     wfw.start();
+   }
+
+}
+
+
+Writing distributed application on Amazon Web Service (6) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+
+public class SWFMain {
+
+ public static void main(String[] args) throws Exception {
+ ClientConfiguration config = new ClientConfiguration().withSocketTimeout(70*1000);
+ String swfAccessId = System.getenv("AWS_ACCESS_KEY_ID");
+ String swfSecretKey = System.getenv("AWS_SECRET_KEY");
+ AWSCredentials awsCredentials = new BasicAWSCredentials(swfAccessId, swfSecretKey);
+ AmazonSimpleWorkflow service = new AmazonSimpleWorkflowClient(awsCredentials, config);
+ service.setEndpoint("https://swf.sampleworkflow.com");
+ String domain = "helloWorldWalkthrough";
+ SWFWorkflowClientExternalFactory factory = new SWFWorkflowClientExternalFactoryImpl(service, domain);
+ SWFWorkflow workflow = factory.getClient("clientID");
+ workflow.message();
+ }
+
+}
+
+
+Writing distributed application on Amazon Web Service (7) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+import com.amazonaws.services.simpleworkflow.flow.WorkflowWorker;
+
+public class SWFWorkflowWorker {
+   public static void main(String[] args) throws Exception  {
+      ClientConfiguration config = new ClientConfiguration().withSocketTimeout(70*1000);
+      String swfAccessId = System.getenv("AWS_ACCESS_KEY_ID");
+      String swfSecretKey = System.getenv("AWS_SECRET_KEY");
+      AWSCredentials awsCredentials = new BasicAWSCredentials(swfAccessId, swfSecretKey);
+      AmazonSimpleWorkflow service = new AmazonSimpleWorkflowClient(awsCredentials, config);
+      service.setEndpoint("https://swf.sampleworkflow.com");
+      String domain = "helloWorldExamples";
+      String taskListToPoll = "HelloWorldAsyncList";
+      WorkflowWorker wfw = new WorkflowWorker(service, domain, taskListToPoll);
+      wfw.addWorkflowImplementationType(SWFWorkflowImpl.class);
+      wfw.start();
+   }
+
+}
+
+
+Writing distributed application on Amazon Web Service (8) :
+----------------------------------------------------------------------------------------------------------------
+
+package amazonswf;
+
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+import com.amazonaws.services.simpleworkflow.flow.ActivityWorker;
+
+public class SWFActivitiesWorker {
+   public static void main(String[] args) throws Exception {
+      ClientConfiguration config = new ClientConfiguration().withSocketTimeout(70*1000);
+      String swfAccessId = System.getenv("AWS_ACCESS_KEY_ID");
+      String swfSecretKey = System.getenv("AWS_SECRET_KEY");
+      AWSCredentials awsCredentials = new BasicAWSCredentials(swfAccessId, swfSecretKey);
+      AmazonSimpleWorkflow service = new AmazonSimpleWorkflowClient(awsCredentials, config);
+      service.setEndpoint("https://swf.sampleworkflow.com");
+      String domain = "helloWorldExamples";
+      String taskListToPoll = "HelloWorldAsyncList";
+      ActivityWorker aw = new ActivityWorker(service, domain, taskListToPoll);
+      aw.addActivitiesImplementation(new SWFActivitiesImpl());
+      aw.start();
+   }
+
+}
+
+
+
+Deploying Sample Java application to Tomcat with Docker :
+----------------------------------------------------------------------------------------------------------------
+
+//re synchronize the package index files from their sources
+sudo apt-get update
+//install the package specified
+sudo apt-get install linux-image-extra-'uname -r'
+//pass advanced options to gpg. With adv --recv-key you can download the public key.
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys <hashkey>
+//execute the following command as interpreted by this program.
+sudo sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+//re synchronize the package index files from their sources
+sudo apt-get update
+//install the package specified
+sudo apt-get install lxc-docker
+//docker run keeping the stdin open even if not attached and allocate a pseudo-TTY
+sudo docker run -i -t ubuntu /bin/bash
+
+
+
+Deploying Sample Java application to Tomcat with Docker (2) :
+----------------------------------------------------------------------------------------------------------------
+
+sudo groupadd docker
+sudo gpasswd -a your_username docker
+sudo service docker restart
+
+
+Deploying Sample Java application to Tomcat with Docker (3) :
+----------------------------------------------------------------------------------------------------------------
+
+FROM ubuntu:saucy
+# Update the Ubuntu with run command
+RUN apt-get update && apt-get -y upgrade
+# Adding java repository to the container
+RUN apt-get -y install software-properties-common
+RUN add-apt-repository ppa:webupd9team/java
+RUN apt-get -y update
+# Accept the Java license for the install
+RUN echo "oracle-java9-installer shared/accepted-oracle-license-v1-1 boolean true" | debconf-set-selections
+# Install the Java software to the container
+RUN apt-get -y install oracle-java9-installer
+# Install the tomcat software to the container
+RUN apt-get -y install tomcat9
+RUN echo "JAVA_HOME=/usr/lib/jvm/java-9-oracle" >> /etc/default/tomcat9EXPOSE 8080
+# Download tomcat homepage
+RUN mkdir /var/lib/tomcat9/webapps/ tomcat
+RUN wget http://tomcat.apache.org -P /var/lib/tomcat9/webapps/tomcat
+# Start Tomcat, after starting Tomcat the container will stop. By using the below technique, it can be keep running.
+CMD service tomcat9 start && tail -f /var/lib/tomcat9/logs/catalina.out
+
+
+Deploying Sample Java application to Tomcat with Docker (4) :
+----------------------------------------------------------------------------------------------------------------
+
+$ docker ps -a -s
+
+
+Deploying Sample Java application to Tomcat with Docker (5) :
+----------------------------------------------------------------------------------------------------------------
+
+$ docker images -tree
+
+
+Deploying Sample Java application to Tomcat with Docker (6) :
+----------------------------------------------------------------------------------------------------------------
+
+RUN wget http://tomcat.apache.org/tomcat-9.0-doc/appdev/sample/sample.war -P /var/lib/tomcat9/webapps
+

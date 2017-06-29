@@ -1,0 +1,509 @@
+SOCKET PROGRAMMING FOR TCP:
+----------------------------------------------------------------------------------------------------------------
+
+ServerSocket server = new ServerSocket( PORT );
+
+
+
+SOCKET PROGRAMMING FOR TCP (2):
+----------------------------------------------------------------------------------------------------------------
+
+Socket serverclient = server.accept();
+
+
+SOCKET PROGRAMMING FOR TCP (3):
+----------------------------------------------------------------------------------------------------------------
+
+Socket client = new Socket(server, portid);
+
+
+SOCKET PROGRAMMING FOR TCP (4):
+----------------------------------------------------------------------------------------------------------------
+
+DataInputStream ips = new DataInputStream(client.getInputStream());
+DataOutputStream ops = new DataOutputStream(client.getOutputStream());
+
+
+SOCKET PROGRAMMING FOR TCP (5):
+----------------------------------------------------------------------------------------------------------------
+
+Client receive: String line = is.readLine();
+Client send: os.writeBytes(“Hello World!\n”);
+
+
+SOCKET PROGRAMMING FOR TCP (6):
+----------------------------------------------------------------------------------------------------------------
+
+client.close();
+
+
+
+
+Reading from the Socket:
+----------------------------------------------------------------------------------------------------------------
+
+//Socket Server
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+public class SimpleSocketServer {
+public static void main(String args[]) throws IOException {
+// A new service registered with the 1286 port
+ServerSocket ss = new ServerSocket(1286);
+//Accept the connection request made with the server socket
+Socket s=ss.accept(); 
+// Establish the output stream from the socket connection
+OutputStream socketOutStream = s.getOutputStream();
+DataOutputStream socketDOS = new DataOutputStream (socketOutStream);
+// Communicate with the socket data stream with a message
+socketDOS.writeUTF("Hello world!");
+// Cleanup
+socketDOS.close();
+socketOutStream.close();
+s.close();
+ss.close();
+}
+}
+
+
+Reading from the Socket (2):
+----------------------------------------------------------------------------------------------------------------
+
+//Socket Client
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.Socket;
+public class SimpleSocketClient {
+public static void main(String args[]) throws IOException {
+// Establish a server connection through 1286 port
+Socket s = new Socket("localhost",1286);
+// Access the input stream of the server socket
+InputStream sIn = s.getInputStream();
+// Wrap the socket input stream with data input stream
+DataInputStream socketDIS = new DataInputStream(sIn);
+//Read from the socket data input stream
+String testString= new String (socketDIS.readUTF());
+//Print the data read
+System.out.println(testString);
+// clean up
+socketDIS.close();
+sIn.close();
+s.close();
+}
+}
+
+
+
+
+SOCKET PROGRAMMING FOR UDP :
+----------------------------------------------------------------------------------------------------------------
+
+DatagramSocket udpSock = new DatagramSocket(3000);
+
+
+
+SOCKET PROGRAMMING FOR UDP (2):
+----------------------------------------------------------------------------------------------------------------
+
+int portNo = udpSock.getLocalPort();
+
+
+
+SOCKET PROGRAMMING FOR UDP (3):
+----------------------------------------------------------------------------------------------------------------
+
+byte[] dataBuff = {'a', 'k', ' ', 'v', 'w', 'x', 'p', 'e'};
+InetAddress inetAddr = InetAddress.getByName("www.google.com");
+DatagramPacket dgPkt = new DatagramPacket(dataBuff, dataBuff.length, inetAddr, 5100);
+udpSock.send(dgPkt);
+
+
+SOCKET PROGRAMMING FOR UDP (4):
+----------------------------------------------------------------------------------------------------------------
+
+//UDP Server
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
+
+public class SimpleUDPServer {
+ public static void main(String args[]) {
+ DatagramSocket dgSocket = null;
+ if (args.length <= 0) {
+ System.out.println("Please pass the port number for UDPServer");
+ // exit the program if no port number passed
+ System.exit(1);
+ }
+ try {
+ int socketNumber = Integer.valueOf(args[0]).intValue();
+ dgSocket = new DatagramSocket(socketNumber);
+ byte[] byteBuffer = new byte[1000];
+ while (true) {
+ DatagramPacket dgRequest = new DatagramPacket(byteBuffer, byteBuffer.length);
+ dgSocket.receive(dgRequest);
+ DatagramPacket dgresponse = new DatagramPacket(dgRequest.getData(), dgRequest.getLength(),
+ dgRequest.getAddress(), dgRequest.getPort());
+ dgSocket.send(dgresponse);
+ }
+ } catch (SocketException e) {
+ System.out.println("Socket Exception : " + e.getMessage());
+ } catch (IOException e) {
+ System.out.println("IO Exception : " + e.getMessage());
+ } finally {
+ if (dgSocket != null)
+ dgSocket.close();
+ }
+ }
+}
+
+
+
+SOCKET PROGRAMMING FOR UDP (5):
+----------------------------------------------------------------------------------------------------------------
+
+//UDP Client
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+
+public class SimpleUDPClient {
+public static void main(String args[]){
+// pass the message, server host and port number as arguments
+DatagramSocket dgSocket = null;
+if (args.length < 3) {
+System.out.println(
+" Pass the arguments for SimpleUDPClient in the order : test message, Server Host name and Port number respectively");
+System.exit(1);
+}
+try {
+dgSocket = new DatagramSocket();
+byte [] bytes = args[0].getBytes();
+InetAddress serverHost = InetAddress.getByName(args[1]);
+int serverPortNumber = Integer.valueOf(args[2]).intValue();
+DatagramPacket dgRequest =
+new DatagramPacket(bytes, args[0].length(), serverHost, serverPortNumber);
+dgSocket.send(dgRequest);
+byte[] byteBuffer = new byte[1000];
+DatagramPacket dgResponse = new DatagramPacket(byteBuffer, byteBuffer.length);
+dgSocket.receive(dgResponse);
+System.out.println("Datagram Response: " + new String(dgResponse.getData()));
+}
+catch (SocketException e) {
+System.out.println("Socket Exception: " + e.getMessage());
+}
+catch (IOException e) {
+System.out.println("IO Exception : " + e.getMessage());
+}
+finally {
+if (dgSocket != null)
+dgSocket.close();
+}
+}
+}
+
+
+Multicasting :
+----------------------------------------------------------------------------------------------------------------
+
+MulticastSocket soc = new MulticastSocket(1400);
+InetAddress grp = InetAddress.getByName("172.0.114.0");
+soc.joinGroup(group);
+
+
+
+Multicasting (2):
+----------------------------------------------------------------------------------------------------------------
+
+for (int i = 0; i < 5; i++) {
+    byte[] buff = new byte[256];
+    pkt = new DatagramPacket(buff, buff.length);
+    soc.receive(pkt);
+    String rcvdString = new String(pkt.getData());
+    System.out.println("Quote: " + rcvdString);
+}
+
+
+Multicasting (3):
+----------------------------------------------------------------------------------------------------------------
+
+soc.leaveGroup(group);
+soc.close();
+
+
+
+Streams :
+----------------------------------------------------------------------------------------------------------------
+
+Runtime rt1 = Runtime.getRuntime();
+Process proc = rt1.exec("/usr/local/bin/performTask.sh");
+InputStream in = proc.getInputStream();
+OutputStream out = proc.getOutputStream();
+
+
+
+Streams (2):
+----------------------------------------------------------------------------------------------------------------
+
+//Piped Server
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+public class SimplePipedServer extends Thread
+{
+ PipedInputStream pipeIn;
+ PipedOutputStream pipeOut;
+ public SimplePipedServer(PipedInputStream pipeIn, PipedOutputStream pipeOut)
+ {
+ this.pipeIn = pipeIn;
+ this.pipeOut = pipeOut;
+ }
+ @SuppressWarnings("deprecation")
+public void run()
+ {
+ // Wrap piped input and output streams with data input and output streams
+ DataInputStream dataIn = new DataInputStream(pipeIn);
+ DataOutputStream dataOut = new DataOutputStream(pipeOut);
+// Accept the client communication
+ try
+ {
+ System.out.println("SimplePipedServer: Reading message from client : ");
+ 
+String clientMessage = dataIn.readUTF();
+ System.out.println("SimplePipedServer: Client message: " + clientMessage);
+ }
+ catch (IOException ex)
+ {
+ System.out.println("SimplePipedServer: IO Exception : Couldn't read the message from the client.");
+ stop();
+ }
+ try
+ {
+ System.out.println("SimplePipedServer: Writing response to the client : ");
+ dataOut.writeChars("Message from the server.\n");
+ }
+ catch (IOException ex)
+ {
+ System.out.println("SimplePipedServer: IO Exception : Failed to connect to client.");
+ }
+ stop();
+ }
+}
+
+
+
+Streams (3):
+----------------------------------------------------------------------------------------------------------------
+
+//Piped Client
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+public class SimplePipedClient extends Thread {
+ PipedInputStream pipeIn;
+ PipedOutputStream pipeOut;
+public SimplePipedClient(PipedInputStream pipeIn, PipedOutputStream pipeOut) {
+ this.pipeIn = pipeIn;
+ this.pipeOut = pipeOut;
+ }
+@SuppressWarnings("deprecation")
+ public void run() {
+ DataInputStream dataIn = new DataInputStream(pipeIn);
+ DataOutputStream dataOut = new DataOutputStream(pipeOut);
+ try {
+ System.out.println("SimplePipedClient: Writing message to the server : ");
+ dataOut.writeChars("Message from the SimplePipedClient to the Server\n");
+ } catch (IOException ex) {
+ System.out.println("SimplePipedClient: IOException : Couldn't get the response from the server.");
+ System.exit(1);
+ }
+ // Server responds
+ try {
+ System.out.println("SimplePipedClient: Reading response from the server : ");
+ String response = dataIn.readUTF();
+ System.out.println("SimplePipedClient: Server response : " + response);
+ } catch (IOException e) {
+ System.out.println("SimplePipedClient: IO Exception : Failed to connect to peer.");
+ }
+ 
+ stop();
+ }
+}
+
+
+
+Streams (4):
+----------------------------------------------------------------------------------------------------------------
+
+//PipeStream Sample
+
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+public class SimplePipeStream {
+public static void main(String[] args) throws IOException {
+final PipedOutputStream pipedOut = new PipedOutputStream();
+ final PipedInputStream pipedIn = new PipedInputStream(pipedOut);
+ Thread threadOne = new Thread(new Runnable() {
+ @Override
+ public void run() {
+ try {
+ pipedOut.write("Hello world, pipe!".getBytes());
+ } catch (IOException e) {
+ }
+ }
+ });
+ Thread threadTwo = new Thread(new Runnable() {
+ @Override
+ public void run() {
+ try {
+ int pipedData = pipedIn.read();
+ while(pipedData != -1){
+ System.out.print((char) pipedData);
+ pipedData = pipedIn.read();
+ }
+ } catch (IOException e) {
+ }
+ }
+ });
+ threadOne.start();
+ threadTwo.start();
+ }
+}
+
+
+URLs, URLConnections, and ContentHandlers :
+----------------------------------------------------------------------------------------------------------------
+
+URL urlHandle = new URL("http://example.com/");
+
+
+
+URLs, URLConnections, and ContentHandlers (2):
+----------------------------------------------------------------------------------------------------------------
+
+URL urlHandle = new URL("http://example.com/pages/");
+URL firstPage = new URL(urlHandle, "page1.html");
+
+
+
+ClassLoader :
+----------------------------------------------------------------------------------------------------------------
+
+//StreamClassLoader
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Hashtable;
+
+public abstract class StreamClassLoader extends ClassLoader {
+ Hashtable<String, Class<?>> componentCache = new Hashtable<String, Class<?>>();
+ InputStream source = null;
+ public StreamClassLoader() {
+ }
+protected abstract String parseComponentNaming(String componentLocation) throws ClassNotFoundException;
+protected abstract void initializeStream(String componentLocation) throws IOException;
+protected abstract Class<?> readComponent(String componentLocation, String componentName) throws IOException, ClassNotFoundException;
+public Class<?> loadComponent(String componentLocation, boolean resolve) throws ClassNotFoundException {
+ String componentName = parseComponentNaming(componentLocation);
+ Class<?> component = (Class<?>) componentCache.get(componentName);
+ if (component == null) {
+ try {
+ initializeStream(componentLocation);
+ } catch (IOException e) {
+ throw new ClassNotFoundException("Failed opening stream to URL.");
+ }
+ try {
+ component = readComponent(componentLocation, componentName);
+ } catch (IOException e) {
+ throw new ClassNotFoundException("Failed reading class component from the stream: " + e);
+ }
+ }
+ componentCache.put(componentName, component);
+ if (resolve)
+ resolveClass(component);
+ return component;
+ }
+}
+
+
+
+ClassLoader (2):
+----------------------------------------------------------------------------------------------------------------
+
+//URLClassLoader
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
+public class URLClassLoader extends StreamClassLoader {
+ URL urlClass = null;
+ InputStream streamClass = null;
+
+@Override
+protected String parseComponentNaming(String componentLocation) throws ClassNotFoundException {
+
+ String componentName = null;
+ try {
+ urlClass = new URL(componentLocation);
+ } catch (MalformedURLException e) {
+ throw new ClassNotFoundException("Bad URL " + componentLocation + " given: " + e);
+ }
+ System.out.println("File = " + urlClass.getFile());
+ System.out.println("Host = " + urlClass.getHost());
+ String filenameFromURL = urlClass.getFile();
+ if (!filenameFromURL.endsWith(".class"))
+ throw new ClassNotFoundException("Non-class URL given.");
+ else
+ componentName = filenameFromURL.substring(0, filenameFromURL.lastIndexOf(".class"));
+ System.out.println("Classname = " + componentName);
+ return componentName;
+ 
+}
+
+@Override
+protected void initializeStream(String componentLocation) throws IOException {
+ streamClass = urlClass.openStream();
+ }
+
+@Override
+protected Class<?> readComponent(String componentLocation, String componentName)
+ throws IOException, ClassNotFoundException {
+ URLConnection urlConn = urlClass.openConnection();
+ int componentSize = urlConn.getContentLength();
+ System.out.println("Class file is " + componentSize + " bytes.");
+ DataInputStream dataInClass = new DataInputStream(streamClass);
+ int isAvailable = dataInClass.available();
+ System.out.println("Available = " + isAvailable);
+ System.out.println("URLClassLoader: Reading class from stream...");
+ byte[] clsData = new byte[componentSize];
+ dataInClass.readFully(clsData);
+ Class<?> component = null;
+ System.out.println("URLClassLoader: Defining class...");
+ try {
+ component = defineClass(null,clsData, 0, clsData.length);
+ } catch (ClassFormatError e) {
+ throw new ClassNotFoundException("Format error found in class data.");
+ }
+ return component;
+ }
+}

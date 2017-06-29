@@ -1,0 +1,567 @@
+Writing RMI Server :
+----------------------------------------------------------------------------------------------------------------
+
+package remote;
+import java.rmi.Remote;
+public interface Calculate extends Remote {
+    public long add(long parameterOne, long parameterTwo)
+    throws java.rmi.RemoteException;
+    public long sub(long parameterOne, long parameterTwo)
+       throws java.rmi.RemoteException;
+   public long mul(long parameterOne, long parameterTwo)
+       throws java.rmi.RemoteException;
+   public long div(long parameterOne, long parameterTwo)
+       throws java.rmi.RemoteException;
+}
+
+
+
+Implementing a Remote Interface :
+----------------------------------------------------------------------------------------------------------------
+
+package remote;
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
+public class CalculateEngine extends UnicastRemoteObject implements Calculate {
+       /**
+        *
+        */
+    private static final long serialVersionUID = 1L;
+    public CalculateEngine() throws RemoteException {
+              super();
+       }
+    @Override
+    public long add(long parameterOne, long parameterTwo) throws RemoteException {
+        return parameterOne + parameterTwo;
+    }
+    @Override
+    public long sub(long parameterOne, long parameterTwo) throws RemoteException {
+        return parameterOne - parameterTwo;
+    }
+    @Override
+    public long mul(long parameterOne, long parameterTwo) throws RemoteException {
+        return parameterOne * parameterTwo;
+    }
+    @Override
+    public long div(long parameterOne, long parameterTwo) throws RemoteException {
+        return parameterOne / parameterTwo;
+    }
+}
+
+
+Implementing a Remote Interface (2):
+----------------------------------------------------------------------------------------------------------------
+
+package remote;
+import java.rmi.Naming;
+import java.rmi.Remote;
+public class MyServer implements Remote{
+    public static void main(String[] args) {
+        if (System.getSecurityManager() == null) {
+            System.setSecurityManager(new SecurityManager());
+        }
+        try {           
+            Naming.rebind("rmi://localhost:5000/calculate",new CalculateEngine()); 
+            System.out.println("CalculateEngine bound");
+            } 
+        catch (Exception e) {
+              System.err.println("CalculateEngine exception:");
+               e.printStackTrace();
+            }
+     }
+}
+
+
+Creating a Client Program :
+----------------------------------------------------------------------------------------------------------------
+
+package local;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import remote.Calculate;
+public class CalculateClient {
+    public static void main(String[] args) {
+        try {
+            Calculate remoteCalculate = (Calculate) Naming.lookup("rmi://localhost:5000/calculate");
+            System.out.println("Remote Addition Result : " + remoteCalculate.add(4, 5));
+            System.out.println("Remote Subtraction Result : " + remoteCalculate.sub(4, 3));               
+            System.out.println("Remote Multiplication Result : " + remoteCalculate.mul(3, 6));
+            System.out.println("Remote Division Result : " + remoteCalculate.div(9, 3));
+        }
+        catch (MalformedURLException me) {
+            System.out.println("MalformedURLException" + me);
+        }
+        catch (RemoteException re) {
+            System.out.println("RemoteException" + re);
+        }
+        catch (NotBoundException ne) {
+            System.out.println("NotBoundException" + ne);
+        }
+        catch (java.lang.ArithmeticException ae) {
+            System.out.println("ArithmeticException" + ae);
+        }
+    }
+}
+
+
+Build a JAR File from the Interface Classes :
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows:
+cd C:\DistributedComputing\Workspace\src
+javac C:\DistributedComputing\Workspace\src\*.java
+jar cvf calculate.jar C:\DistributedComputing\Workspace\classes\*.class
+
+
+Build a JAR File from the Interface Classes (2):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+cd /home/distributedcomputing/workspace/src
+javac /home/distributedcomputing/workspace/src/*.java
+jar cvf calculate.jar /home/distributedcomputing/workspace/classes/*.class
+
+
+
+
+Building the Server Classes :
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows:
+cd C:\DistributedComputing\Workspace\src
+javac -cp C:\DistributedComputing\Workspace\classes\calculate.jar     remote\CalculateEngine.java
+
+
+
+Building the Server Classes (2):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+cd /home/distributedcomputing/workspace/src
+javac -cp /home/distributedcomputing/workspace/classes/calculate.jar     remote/CalculateEngine.java
+
+
+
+
+Building the Client Classes :
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows:
+cd C:\DistributedComputing\Workspace\src
+javac -cp C:\DistributedComputing\Workspace\src\calculate.jar   local\CalculateClient.java
+mkdir C:\DistributedComputing\Workspace\classes
+cp local\CalculateClient.class   C:\DistributedComputing\Workspace\classes
+
+
+
+Building the Client Classes (2):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+cd /home/distributedcomputing/workspace/src
+javac -cp /home/distributedcomputing/workspace/src/calculate.jar   local/CalculateClient.java
+mkdir /home/distributedcomputing/workspace/classes
+cp local/CalculateClient.class   /home/distributedcomputing/workspace/classes
+
+
+
+Running the Remote Client Program :
+----------------------------------------------------------------------------------------------------------------
+
+server.policy
+grant codeBase "file:D://development//eclipseworkspace//CalculateApp//src//remote//" {
+    permission java.security.AllPermission;
+};
+
+
+Running the Remote Client Program (2):
+----------------------------------------------------------------------------------------------------------------
+
+client.policy
+grant codeBase "file:D://development//eclipseworkspace//CalculateApp//src//local//" {
+    permission java.security.AllPermission;
+};
+
+
+
+Starting the Server :
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows (use javaw if start is not available) (port_no is optional):
+start rmiregistry <port_no>
+
+
+Starting the Server (2):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+rmiregistry <port_no> &
+
+
+Starting the Server (3):
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows:
+java -cp C:\DistributedComputing\Workspace\src;C:\DistributedComputing\Workspace\classes\calculate.jar -Djava.rmi.server.codebase=file:\\C:\DistributedComputing\Workspace\classes\calculate.jar -Djava.rmi.server.hostname=myserver.host.com -Djava.security.policy=server.policy   remote.CalculateEngine
+
+
+Starting the Server (4):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+java -cp /home/distributedcomputing/workspace/src;/home/distributedcomputing/workspace/classes/calculate.jar -Djava.rmi.server.codebase=http://myserver/~server/classes/calculate.jar -Djava.rmi.server.hostname=myserver.host.com -Djava.security.policy=server.policy         remote.ComputeEngine
+
+
+Invoking the Client :
+----------------------------------------------------------------------------------------------------------------
+
+Microsoft Windows:
+java -cp C:\DistributedComputing\Workspace\src;C:\DistributedComputing\Workspace\classes\calculate.jar -Djava.rmi.server.codebase=file:\\C:\DistributedComputing\Workspace\classes -Djava.security.policy=client.policy client.CalculateClient myserver.host.com 45
+
+
+
+Invoking the Client (2):
+----------------------------------------------------------------------------------------------------------------
+
+Solaris OS or Linux:
+java -cp /home/distributedcomputing/workspace/src;/home/distributedcomputing/workspace/classes/calculate.jar -Djava.rmi.server.codebase=http://myserver/~client/classes/ -Djava.security.policy=client.policy client.CalculateClient myserver.host.com 45
+
+
+
+OMG IDL Samples :
+----------------------------------------------------------------------------------------------------------------
+
+//EmployeeHiring.idl
+Module EmployeeHiring {
+interface Employee();
+}
+
+
+
+OMG IDL Samples (2):
+----------------------------------------------------------------------------------------------------------------
+
+Module outer{
+Module inner {
+interface inside{};
+};
+interface outside {
+inner::inside get_inside();
+};
+};
+
+
+OMG IDL Samples (3):
+----------------------------------------------------------------------------------------------------------------
+
+module EmployeeHierarchy {
+interface Person {
+typedef unsigned short ushort;
+ushort method1();
+};
+interface Employee : Person {
+Boolean method2(ushort num);
+};
+};
+
+
+
+OMG IDL Samples (4):
+----------------------------------------------------------------------------------------------------------------
+
+interface Clerk: Person, Employee, Associate::Administrator {
+};
+
+
+
+OMG IDL Samples (5):
+----------------------------------------------------------------------------------------------------------------
+
+interface EmployeeRegistry {
+typedef identification string <10>;
+typedef name string <100>;
+identification getId(in string name);
+name getName(in string id);
+};
+
+
+
+OMG IDL Samples (6):
+----------------------------------------------------------------------------------------------------------------
+
+interface EmployeeRegistry {
+struct address_spec {
+name string <100>;
+salary float;
+};
+
+
+OMG IDL Samples (7):
+----------------------------------------------------------------------------------------------------------------
+
+. employee_dept {admin, sales, it, business};
+union  employee switch (employee_dept) {
+case admin, business : age_spec age;
+cae sales : sales_detail sales;
+default float salary;
+};
+
+
+
+OMG IDL Samples (8):
+----------------------------------------------------------------------------------------------------------------
+
+// “employee” as defined in previous section
+typedef sequence <employee> AssignmentOrderSeq;
+typedef sequence <employee, 4> QuartelyAssignmentOrderSeq;
+typedef sequence <sequence <<employee>, 12> AnnualAssignmentOrderSeq;
+typedef sequence <sequence <employee> > CompleteAssignmentOrderSeq;
+
+
+Sample CORBA Program using JAVA IDL :
+----------------------------------------------------------------------------------------------------------------
+
+//Employee.idl
+module org {
+module admin {
+module hr {
+module employee {
+interface Registry {
+string register();
+     };
+   };
+  };
+ };
+};
+
+
+
+Sample CORBA Program using JAVA IDL (2):
+----------------------------------------------------------------------------------------------------------------
+
+prompt> idl2java -strict -root_dir generated Employee.idl
+
+
+
+Sample CORBA Program using JAVA IDL (3):
+----------------------------------------------------------------------------------------------------------------
+
+Registry.java
+RegistryHolder.java        RegistryHelper.java
+RegistryStub.java          RegistryPOA.java
+RegistryOperations.java    RegistryPOATie.java
+
+
+Sample CORBA Program using JAVA IDL (4):
+----------------------------------------------------------------------------------------------------------------
+
+package org.admin.hr.employee;
+public interface Registry extends RegistyOperations, org.omg.CORBA.object, org.omg.CORBA.portable.IDLEntry
+{
+}
+
+
+Sample CORBA Program using JAVA IDL (5):
+----------------------------------------------------------------------------------------------------------------
+
+package org.admin.hr.employee;
+public interface RegistryOperations {
+public java.lang.String register();
+}
+
+
+
+Sample CORBA Program using JAVA IDL (6):
+----------------------------------------------------------------------------------------------------------------
+
+package org.admin.hr.employee;
+import java.io.*;
+import org.omg.CORBA.*;
+public class Client {
+public static void main(String args[]) {
+try {
+ORB orb = ORB.init (args. Null);
+}
+Catch(Exception e)  {
+System.out.println(“Exception “ + e);
+}
+}
+}
+
+
+Sample CORBA Program using JAVA IDL (7):
+----------------------------------------------------------------------------------------------------------------
+
+org.omg.CORBA.Object obj = orb.string_to_object (args[0]);
+
+
+
+
+Sample CORBA Program using JAVA IDL (8):
+----------------------------------------------------------------------------------------------------------------
+
+Registry reg = RegistryHelper.narrow(obj);
+If (reg == null) {
+System.err.println(“object reference type fault”);
+System.exit(-1);
+}
+
+
+
+Sample CORBA Program using JAVA IDL (9):
+----------------------------------------------------------------------------------------------------------------
+
+System.out.println(reg.register());
+
+
+
+Sample CORBA Program using JAVA IDL (10):
+----------------------------------------------------------------------------------------------------------------
+
+prompt > javac Client.java
+prompt > java org.admin.hr.employee.Client IOR:0002453..2
+
+
+
+Sample CORBA Program using JAVA IDL (11):
+----------------------------------------------------------------------------------------------------------------
+
+package org.admin.hr.employee;
+import org.omg.CORBA.*;
+public class RegisterImpl extends RegisterPOA {
+private String name;
+RegisterImple(String name){
+this.name = name;
+}
+public String register() {
+return “Employee “ + name + “, is now registered”;
+}
+}
+
+
+
+Sample CORBA Program using JAVA IDL (12):
+----------------------------------------------------------------------------------------------------------------
+
+prompt> javac RegisterImpl.java
+
+
+
+Sample CORBA Program using JAVA IDL (13):
+----------------------------------------------------------------------------------------------------------------
+
+package org.admin.hr.employee;
+import java.io.*;
+import org.omg.CORBA.*;
+import org.omg.PortableServer.*;
+public class Server {
+public static void main(String[] args) {
+if(args.length < 1 ) {
+System.out.println(“Usage : java org.admin.hr.employee <name> “);
+System.exit(-1);
+} 
+try {
+ ORB orb = ORB.init(args, null);
+//make java object
+RegisterImpl regImpl = new RegisterImpl (args[0]);
+//make CORBA object
+POA poa = POAHelper.narrow(orb.resolve_initial_references(“RootPOA”);
+};
+poa.the_POAManager().activate();
+//get the object reference
+Org.omg.CORBA.Object obj = poa.servant_to_reference (regImpl);
+//print the object reference
+System.out.println( orb.object_to_string(obj));
+);
+//wait for the requests to receive
+orb.run();
+}
+Catch(InvalidName e){
+System.out.println(e);
+}
+Catch(UserException e)
+{
+System.err.println(e);
+}
+Catch(SystemException e) {
+System.err.println(e);
+}
+}
+}
+
+
+Sample CORBA Program using JAVA IDL (14):
+----------------------------------------------------------------------------------------------------------------
+
+prompt> javac Server.java
+prompt> java org.admin.hr.employee.Server Rohith
+
+
+Sample CORBA Program using JAVA IDL (15):
+----------------------------------------------------------------------------------------------------------------
+
+IOR:000044589
+
+
+
+Sample CORBA Program using JAVA IDL (16):
+----------------------------------------------------------------------------------------------------------------
+
+prompt> java org.admin.hr.employee.Server Rohith > shw.ior
+
+
+
+Sample CORBA Program using JAVA IDL (17):
+----------------------------------------------------------------------------------------------------------------
+
+prompt> java org.admin.hr.employee.Client ‘Ram shw.ior’
+
+
+
+JavaSpace:
+----------------------------------------------------------------------------------------------------------------
+
+//Message.java
+package org.hr.communication;
+import net.jini.core.entry.*;
+public class Message implements Entry {
+   public String content;
+   public Message() {
+   }
+   public Message(String content) {
+     this.content = content;
+   }
+   public String toString() {
+     return "MessageContent: " + content;
+   }
+}
+
+
+
+JavaSpace (2):
+----------------------------------------------------------------------------------------------------------------
+
+package org.hr.communication;
+import net.jini.space.JavaSpace;
+public class SpaceUser {
+       public static void main(String argv[]) {
+              try {
+                     Message msg = new Message();
+                     msg.content = "Hi ";
+                     System.out.println("Searching for Java Space.");
+                     Lookup searcher = new Lookup(JavaSpace.class);
+                     JavaSpace jSpace = (JavaSpace) searcher.getService();
+                     System.out.println("A Java Space found.");
+                     System.out.println("Writing a message to space...");
+                     jSpace.write(msg, null, 60 * 60 * 500);
+                     Message tmpl = new Message();
+                     System.out.println("Reading a message from the space...");
+                     Message rslt = (Message) jSpace.read(tmpl, null, Long.MAX_VALUE);
+                     System.out.println("The message read is: " + rslt.content);
+              } catch (Exception e) {
+                     e.printStackTrace();
+              }
+       }
+}

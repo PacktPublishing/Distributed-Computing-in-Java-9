@@ -1,0 +1,513 @@
+﻿Publish Subscribe (Topic) Programming :
+----------------------------------------------------------------------------------------------------------------
+
+package pubsub;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import javax.jms.Topic;
+import javax.jms.TopicConnection;
+import javax.jms.TopicConnectionFactory;
+import javax.jms.TopicPublisher;
+import javax.jms.TopicSession;
+import javax.naming.InitialContext;
+
+/**
+ * Program to publish messages to the topic
+ * @author Raja
+ *
+ */
+public class PubSubTopicPublisher {
+
+ public static void main(String[] args) {
+ PubSubTopicPublisher publisher = new PubSubTopicPublisher();
+ publisher.publishMultipleMessages();
+ }
+
+ public void publishMultipleMessages() {
+ BufferedReader inlineReader = new BufferedReader(new InputStreamReader(System.in));
+ try {
+
+ //Prompt for the JNDI topic connection factory name
+ System.out.println("Enter the Publish Subscribe Topic Connection Factory name:");
+ String connectionFactoryName = inlineReader.readLine();
+
+ // Prompt for topic name for the Pub Sub
+ System.out.println("Enter the Publish Subscribe Topic name:");
+ String pubsubTopicName = inlineReader.readLine();
+
+ // Look up for the administered objects of Pub Sub
+ InitialContext context = new InitialContext();
+ TopicConnectionFactory topicConnFactory = (TopicConnectionFactory) context.lookup(connectionFactoryName);
+ Topic pubsubTopic = (Topic) context.lookup(pubsubTopicName);
+ context.close();
+
+ // Create the JMS objects from administered objects
+ TopicConnection topicConnection = topicConnFactory.createTopicConnection();
+ TopicSession topicSession = topicConnection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
+ TopicPublisher topicPublisher = topicSession.createPublisher(pubsubTopic);
+
+ // Publish multiple text messages entered one after the other
+ String messageContent = null;
+ while (true) {
+ System.out.println("Enter the new message to send or 'abandon' to exit the program:");
+ messageContent = inlineReader.readLine();
+ if ("abandon".equals(messageContent))
+ break;
+ TextMessage textMessage = topicSession.createTextMessage(messageContent);
+ topicPublisher.publish(textMessage);
+ }
+
+ // Clean Up
+ System.out.println("Messages Successfully posted to the queue...");
+ inlineReader.close();
+ topicConnection.close();
+ } catch (Exception e) {
+ e.printStackTrace();
+ }
+ }
+}
+
+
+Publish Subscribe (Topic) Programming (2) :
+----------------------------------------------------------------------------------------------------------------
+
+package pubsub;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageListener;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import javax.jms.Topic;
+import javax.jms.TopicConnection;
+import javax.jms.TopicConnectionFactory;
+import javax.jms.TopicSession;
+import javax.jms.TopicSubscriber;
+import javax.naming.InitialContext;
+
+/**
+ * Program to subscribe for messages from the topic
+ * 
+ * @author Raja
+ *
+ */
+public class PubSubTopicSubscriber implements MessageListener {
+ private boolean quitMessageSubscription = false;
+
+ public static void main(String[] args) {
+ PubSubTopicSubscriber pubSubTopicSubscriber = new PubSubTopicSubscriber();
+ pubSubTopicSubscriber.subscribeTopic();
+ }
+
+ public void subscribeTopic() {
+ BufferedReader inlineReader = new BufferedReader(new InputStreamReader(System.in));
+ try {
+
+ // Prompt for the JNDI topic connection factory name
+ System.out.println("Enter the Publish Subscribe Topic Connection Factory name:");
+ String connectionFactoryName = inlineReader.readLine();
+
+ // Prompt for topic name for the Pub Sub
+ System.out.println("Enter the Publish Subscribe Topic name:");
+ String pubsubTopicName = inlineReader.readLine();
+ inlineReader.close();
+
+ // Look up for the administered objects of Pub Sub
+ InitialContext context = new InitialContext();
+ TopicConnectionFactory topicConnFactory = (TopicConnectionFactory) context.lookup(connectionFactoryName);
+ Topic pubsubTopic = (Topic) context.lookup(pubsubTopicName);
+ context.close();
+
+ // Create the JMS objects from administered objects
+ TopicConnection topicConnection = topicConnFactory.createTopicConnection();
+ TopicSession topicSession = topicConnection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
+ TopicSubscriber topicSubscriber = topicSession.createSubscriber(pubsubTopic);
+ topicSubscriber.setMessageListener(this);
+ topicConnection.start();
+
+ // Keep listening to the pub sub until the Quit subscription command
+ while (!quitMessageSubscription) {
+ Thread.sleep(1000);
+ }
+
+ // Clean Up
+ System.out.println("Messages successfully listened so far, Quitting Subscription!");
+ topicConnection.close();
+ } catch (Exception e) {
+ e.printStackTrace();
+ }
+ }
+ 
+ public void onMessage(Message message) {
+ try {
+ String messageContent = ((TextMessage) message).getText();
+ System.out.println(messageContent);
+ if ("quit".equals(messageContent))
+ quitMessageSubscription = true;
+ } catch (JMSException e) {
+ e.printStackTrace();
+ quitMessageSubscription = true;
+ }
+ }
+}
+
+
+Point to Point (Queue) Programming :
+----------------------------------------------------------------------------------------------------------------
+
+package pointtopoint;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+import javax.jms.Queue;
+import javax.jms.QueueConnection;
+import javax.jms.QueueConnectionFactory;
+import javax.jms.QueueSender;
+import javax.jms.QueueSession;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import javax.naming.InitialContext;
+
+/**
+ * Program to send messages to the queue
+ * @author Raja
+ *
+ */
+public class QueueMessageSender {
+ public static void main(String[] args) {
+ QueueMessageSender messageSender = new QueueMessageSender();
+ messageSender.enqueueMessage();
+ }
+
+ public void enqueueMessage() {
+ BufferedReader inlineReader = new BufferedReader(new InputStreamReader(System.in));
+ try {
+
+ // Prompt for the JNDI Queue connection factory name
+ System.out.println("Enter the Queue Connection Factory name:");
+ String queueConnFactoryName = inlineReader.readLine();
+ System.out.println("Enter the Queue name:");
+ String queueName = inlineReader.readLine();
+
+ // Look up for the administered objects of the Queue
+ InitialContext context = new InitialContext();
+ QueueConnectionFactory queueConnFactory = (QueueConnectionFactory) context.lookup(queueConnFactoryName);
+ Queue queueReference = (Queue) context.lookup(queueName);
+ context.close();
+
+ // Create the JMS objects from administered objects
+ QueueConnection queueConnection = queueConnFactory.createQueueConnection();
+ QueueSession queueSession = queueConnection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+ QueueSender queueSender = queueSession.createSender(queueReference);
+
+ // Enqueue multiple text messages entered one after the other
+ String messageContent = null;
+ while (true) {
+ System.out.println("Enter the new message to send or 'abandon' to exit the program:");
+ messageContent = inlineReader.readLine();
+ if ("abandon".equals(messageContent))
+ break;
+ TextMessage textMessage = queueSession.createTextMessage(messageContent);
+ queueSender.send(textMessage);
+ }
+
+ // Clean Up
+ System.out.println("Messages Successfully posted to the queue...");
+ inlineReader.close();
+ queueConnection.close();
+ } catch (Exception e) {
+ e.printStackTrace();
+ }
+ }
+
+}
+
+
+
+Point to Point (Queue) Programming (2):
+----------------------------------------------------------------------------------------------------------------
+
+package pointtopoint;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageListener;
+import javax.jms.Queue;
+import javax.jms.QueueConnection;
+import javax.jms.QueueConnectionFactory;
+import javax.jms.QueueReceiver;
+import javax.jms.QueueSession;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import javax.naming.InitialContext;
+
+/**
+ * Program to receive messages from the queue
+ * @author Raja
+ *
+ */
+public class QueueMessageReceiver implements MessageListener {
+ private boolean stopReceivingMessages = false;
+
+ public static void main(String[] args) {
+ QueueMessageReceiver queueMessageReceiver = new QueueMessageReceiver();
+ queueMessageReceiver.startReceivingMessages();
+ }
+
+ public void startReceivingMessages() {
+ BufferedReader inlineReader = new BufferedReader(new InputStreamReader(System.in));
+ try {
+
+ // Prompt for the JNDI Queue connection factory name
+ System.out.println("Enter the Queue Connection Factory name:");
+ String queueConnFactoryName = inlineReader.readLine();
+ System.out.println("Enter the Queue name:");
+ String queueName = inlineReader.readLine();
+
+ // Look up for the administered objects of the Queue
+ InitialContext context = new InitialContext();
+ QueueConnectionFactory queueConnFactory = (QueueConnectionFactory) context.lookup(queueConnFactoryName);
+ Queue queueReference = (Queue) context.lookup(queueName);
+ context.close();
+
+ // Create the JMS objects from administered objects
+ QueueConnection queueConnection = queueConnFactory.createQueueConnection();
+ QueueSession queueSession = queueConnection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+ QueueReceiver queueMessageReceiver = queueSession.createReceiver(queueReference);
+ queueMessageReceiver.setMessageListener(this);
+ queueConnection.start();
+
+ // Keep receiving the messages from the queue until the stop receiving messages command is received
+ while (!stopReceivingMessages) {
+ Thread.sleep(1000);
+ }
+
+ // Clean Up
+ System.out.println("Messages successfully received so far, Stop receiving messages!");
+ queueConnection.close();
+ } catch (Exception e) {
+ e.printStackTrace();
+ }
+ }
+
+ public void onMessage(Message message) {
+ try {
+ String messageContent = ((TextMessage) message).getText();
+ System.out.println(messageContent);
+ if ("stop".equals(messageContent))
+ stopReceivingMessages = true;
+ } catch (JMSException e) {
+ e.printStackTrace();
+ stopReceivingMessages = true;
+ }
+ }
+
+}
+
+
+SOAP Web Service using JAX-WS API in RPC Style:
+----------------------------------------------------------------------------------------------------------------
+
+//Remote Server Interface
+package jaxws.rpc;
+
+import javax.jws.WebMethod; 
+import javax.jws.WebService; 
+import javax.jws.soap.SOAPBinding; 
+import javax.jws.soap.SOAPBinding.Style; 
+//Service End point Interface 
+@WebService 
+@SOAPBinding(style = Style.RPC) 
+public interface RPCServer{ 
+    @WebMethod String getRPCServerName(String name); 
+} 
+
+
+SOAP Web Service using JAX-WS API in RPC Style (2):
+----------------------------------------------------------------------------------------------------------------
+
+//Remote Server implementation
+package jaxws.rpc;
+
+import javax.jws.WebService; 
+//Service Implementation for the interface
+@WebService(endpointInterface = "jaxws.rpc.RPCServer")
+public class RPCServerImpl implements RPCServer {
+
+    @Override
+    public String getRPCServerName(String name) {
+          return " JAX-WS RPC Server is : " + name; 
+    }
+
+}
+
+
+SOAP Web Service using JAX-WS API in RPC Style (3):
+----------------------------------------------------------------------------------------------------------------
+
+//Web Service publisher
+package jaxws.rpc;
+
+import javax.xml.ws.Endpoint;
+
+//End point publisher
+public class RPCPublisher {
+    public static void main(String[] args) {
+      Endpoint.publish("http://localhost:7779/jaxws/rpcservice", new RPCServerImpl()); 
+    }
+
+}
+
+
+SOAP Web Service using JAX-WS API in RPC Style (4):
+----------------------------------------------------------------------------------------------------------------
+
+package jaxws.rpc;
+
+import java.net.URL; 
+import javax.xml.namespace.QName; 
+import javax.xml.ws.Service; 
+
+public class RPCClient {
+
+ public static void main(String[] args) throws Exception {
+ URL url = new URL("http://localhost:7779/jaxws/rpcservice?wsdl"); 
+ 
+ //1st argument is the service URI as per the wsdl 
+ //2nd argument is the service name as per the wsdl 
+ QName qname = new QName("http://jaxwsrpcsoapservice.com/", "RPCServerImplService"); 
+ Service service = Service.create(url, qname); 
+ RPCServer rpcWebService = service.getPort(RPCServer.class); 
+ System.out.println(rpcWebService.getRPCServerName("Packt RPC")); 
+ }
+
+}
+
+
+SOAP Web Service using JAX-WS API in Document Style:
+----------------------------------------------------------------------------------------------------------------
+
+//SOAP Binding annotation for document style
+@SOAPBinding(style = Style.DOCUMENT)  
+
+
+
+RESTful web service using JAX-RS API (using Jersey implementation):
+----------------------------------------------------------------------------------------------------------------
+
+package jaxrs;
+
+import javax.ws.rs.GET; 
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces; 
+import javax.ws.rs.core.MediaType; 
+
+@Path("/restws") 
+public class RESTServer { 
+
+  // This method is invoked if the request is not for HTML or XML 
+  @GET 
+  @Produces(MediaType.TEXT_PLAIN) 
+  public String getServerResponse() { 
+    return "REST Server plain text response"; 
+  } 
+
+  // This method is invoked if XML content is requested 
+  @GET 
+  @Produces(MediaType.TEXT_XML) 
+  public String getXMLServerResponse() { 
+    return "<restws>REST Server xml response</restws>"; 
+  } 
+
+  // This method is invoked if HTML content is requested 
+  @GET 
+  @Produces(MediaType.TEXT_HTML) 
+  public String getHtmlServerResponse() { 
+    return "<html> " + "<title>" + "REST Server Response" + "</title>" 
+        + "<body><h1>" + "REST Server HTML response" + "</h1></body>" + "</html> "; 
+  } 
+}  
+
+
+RESTful web service using JAX-RS API (using Jersey implementation) (2):
+----------------------------------------------------------------------------------------------------------------
+
+<?xml version="1.0" encoding="UTF-8"?> 
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+xmlns="http://java.sun.com/xml/ns/javaee"  
+xsi:schemaLocation="http://java.sun.com/xml/ns/javaee  
+http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"  
+id="WebApp_ID" version="3.0"> 
+ <servlet> 
+    <servlet-name>Jersey REST Web Service</servlet-name> 
+    <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class> 
+    <init-param> 
+        <param-name>jersey.config.server.provider.packages</param-name> 
+        <param-value>jaxrs</param-value> 
+    </init-param> 
+    <load-on-startup>1</load-on-startup> 
+  </servlet> 
+  <servlet-mapping> 
+    <servlet-name>Jersey REST Web Service</servlet-name> 
+    <url-pattern>/rest/*</url-pattern> 
+  </servlet-mapping> 
+</web-app>  
+
+
+
+RESTful web service using JAX-RS API (using Jersey implementation) (3):
+----------------------------------------------------------------------------------------------------------------
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>REST Web Service</title>
+</head>
+<body>
+   <a href="rest/restws">Invoke the REST Web Service</a>
+</body>
+</html>
+
+
+
+RESTful web service using JAX-RS API (using Jersey implementation) (4):
+----------------------------------------------------------------------------------------------------------------
+
+package jaxrs;
+
+import java.net.URI; 
+import javax.ws.rs.client.Client; 
+import javax.ws.rs.client.ClientBuilder; 
+import javax.ws.rs.client.WebTarget; 
+import javax.ws.rs.core.MediaType; 
+import javax.ws.rs.core.UriBuilder; 
+import org.glassfish.jersey.client.ClientConfig;
+
+public class RESTClient {
+     public static void main(String[] args) { 
+            ClientConfig config = new ClientConfig(); 
+            Client client = ClientBuilder.newClient(config); 
+            WebTarget target = client.target(getBaseURI()); 
+ //Invoke the REST Web Service for different media type responses
+ System.out.println(target.path("rest").path("restws").request().accept(MediaType.TEXT_PLAIN).get(String.class)); 
+ System.out.println(target.path("rest").path("restws").request().accept(MediaType.TEXT_XML).get(String.class)); 
+ System.out.println(target.path("rest").path("restws").request().accept(MediaType.TEXT_HTML).get(String.class)); 
+          } 
+
+          private static URI getBaseURI() { 
+            //server is deployed on 4444 port as the jaxrsrestful project 
+            return UriBuilder.fromUri("http://localhost:4444/jaxrsrestful").build(); 
+          } 
+}

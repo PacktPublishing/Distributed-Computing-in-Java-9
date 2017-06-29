@@ -1,0 +1,162 @@
+Java Support:
+----------------------------------------------------------------------------------------------------------------
+
+pid = fork();
+if (pid != 0 ) {
+cout << "This is a parent process";
+}
+else {
+cout << "This is a child process"; 
+}
+
+
+
+Java Support (2):
+----------------------------------------------------------------------------------------------------------------
+
+public class NewThread extends Thread {
+public void run() {
+System.out.println("New Thread executing!");
+}
+public static void main(String[] args) {
+Thread t1 = new NewThread();
+t1.start();
+}
+}
+
+
+Java Support (3):
+----------------------------------------------------------------------------------------------------------------
+
+public class Animal {
+String name;
+public Animal(String name) {
+  this.name = name;
+}
+public void setName(String name) {
+  this.name = name;
+}
+public String getName() {
+  return this.name;
+}
+}
+
+Java Support (3.1):
+----------------------------------------------------------------------------------------------------------------
+
+public class Mammal extends Animal implements Runnable {
+public Mammal (String name) {
+  super (name) ;
+}
+public void run () {
+for(int i=0; i < 100; i++)
+{
+  System.out.println("The name of the Animal is : " + this.getName());
+}
+}
+public static void main(String[] args) {
+  Animal firstAnimal = new Mammal("Tiger");
+  Thread threadOne = new Thread (firstAnimal);
+  threadOne.start();
+  Animal secondAnimal = new Mammal("Elephant");
+  Thread threadTwo = new Thread(secondAnimal);
+  threadTwo.start(); 
+}
+
+
+
+
+Java Support (4):
+----------------------------------------------------------------------------------------------------------------
+
+public class Fib extends Thread
+{
+    private int x;
+    public int answer;
+    public Fib(int x) {
+        this.x = x;
+    }
+    public void run() {
+        if( x <= 2 )
+            answer = 1;
+        else {
+            try {
+                Fib f1 = new Fib(x-1);
+                Fib f2 = new Fib(x-2);
+                f1.start();
+                f2.start();
+                f1.join();
+                f2.join();
+                answer = f1.answer + f2.answer;
+            }
+            catch(InterruptedException ex) { }
+        }
+    }
+    public static void main(String[] args)  throws Exception
+    {
+        try {
+            Fib f = new Fib( Integer.parseInt(args[0]) );
+            f.start();
+            f.join();
+            System.out.println(f.answer);
+        }
+        catch(Exception ex) {
+            System.err.println("usage: java Fib NUMBER");
+        }
+    }
+}
+
+
+Java Support (5):
+----------------------------------------------------------------------------------------------------------------
+
+Callable<Integer> callableObject = () -> { return 5 + 9; };
+
+
+
+Java Support (6):
+----------------------------------------------------------------------------------------------------------------
+
+Callable<Integer> callableObject = new Callable<Integer>() {
+	@Override
+	public Integer call() throws Exception {
+		return 5 + 6;
+	}
+};
+
+
+Java Support (7):
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+public class JavaCallableThreads {
+
+ public static void main(String[] args) {
+ final List<Integer> numbers = Arrays.asList(1,2,3,4,5);
+ Callable<Integer> callableObject = () -> {
+ int sum = numbers.stream().mapToInt(i -> i.intValue()).sum();
+ return sum;
+ };
+ ExecutorService exService = Executors.newSingleThreadExecutor();
+ Future<Integer> futureObj = exService.submit(callableObject);
+ Integer futureSum=0;
+ try {
+ futureSum = futureObj.get();
+ } catch (InterruptedException e) {
+ e.printStackTrace();
+ } catch (ExecutionException e) {
+ e.printStackTrace();
+ }
+ System.out.println("Sum returned = " + futureSum);
+ }
+
+}

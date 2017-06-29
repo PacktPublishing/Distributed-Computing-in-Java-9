@@ -1,0 +1,337 @@
+﻿Java Database Connectivity :
+----------------------------------------------------------------------------------------------------------------
+
+Connection dbConn = DriverManager.getConnection(databaseURL, username, password);
+Statement qryStmt = dbConn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+ResultSet queryResults = qryStmt.executeQuery("SELECT <COLUMNS TO RETRIEVE> FROM <TABLES / VIEWS ALONG WITH CRITERIA>");
+
+Java Database Connectivity (2):
+----------------------------------------------------------------------------------------------------------------
+
+package resultset;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+public class UpdatableResultSet { 
+ public static void main(String[] args) {
+ try (
+ //Load Driver class
+ Class.forName("oracle.jdbc.driver.OracleDriver");
+ // Oracle Connection 
+ Connection databaseConn = DriverManager.getConnection
+ ("jdbc:oracle:thin:@myhost:1521:orcl", "scott", "tiger");
+ 
+ // TYPE_SCROLL_INSENSITIVE: Indicates the ResultSet is scrollable 
+ // but not sensitive to the data changes that underlies the ResultSet.
+ // CONCUR_UPDATABLE: Resultset concurrency mode is updatable
+ Statement queryStmt = databaseConn.createStatement(
+ ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+ ) {
+ // Disable auto-commit before executing the query
+ databaseConn.setAutoCommit(false); 
+ 
+ ResultSet resultSet = queryStmt.executeQuery("select * from department");
+ 
+ // To update a row using the result set
+ resultSet.last();
+ System.out.println("*** Updating the row using ResultSet ***");
+ System.out.println(
+ resultSet.getRow() + ": " + + resultSet.getInt("deptId") + ", "
+ + resultSet.getString("deptName") + ", " + resultSet.getString("manager") + ", "
+ + resultSet.getDouble("productivity") + ", " + resultSet.getInt("effortHours"));
+ resultSet.updateDouble("productivity", 99.99); // update a field value by its column name
+ resultSet.updateInt("effortHours", 99);
+ resultSet.updateRow(); // update the row in the database
+ //Print the row information after update operation
+ System.out.println(
+ resultSet.getRow() + ": " + + resultSet.getInt("deptId") + ", "
+ + resultSet.getString("deptName") + ", " + resultSet.getString("manager") + ", "
+ + resultSet.getDouble("productivity") + ", " + resultSet.getInt("effortHours"));
+ 
+ // Delete a row using the result set
+ resultSet.first();
+ System.out.println("*** Delete the row using ResultSet ***");
+ System.out.println(
+ resultSet.getRow() + ": " + + resultSet.getInt("deptId") + ", "
+ + resultSet.getString("deptName") + ", " + resultSet.getString("manager") + ", "
+ + resultSet.getDouble("productivity") + ", " + resultSet.getInt("effortHours"));
+ resultSet.deleteRow(); // delete the current row in the database
+ 
+ // A updatable ResultSet has feature to stage a row before inserting into the database
+ resultSet.moveToInsertRow();
+ resultSet.updateInt(1, 758); // Update fields using the column number instead of column name
+ resultSet.updateString(2, "Human Resources");
+ resultSet.updateString(3, "Trump");
+ resultSet.updateDouble(4, 55.40);
+ resultSet.updateInt(5, 65);
+ resultSet.insertRow(); // row is inserted into the database
+ 
+ // Move the cursor to the starting of the ResultSet.
+ resultSet.beforeFirst();
+ 
+ databaseConn.commit(); // commit
+ } catch(SQLException ex) {
+ ex.printStackTrace();
+ }
+ }
+}
+
+
+Sample Program for XA Transaction :
+----------------------------------------------------------------------------------------------------------------
+
+package distributedtransaction;
+
+//You need to import the java.sql package to use JDBC
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import javax.sql.XAConnection;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
+
+import oracle.jdbc.pool.OracleDataSource;
+import oracle.jdbc.xa.OracleXAException;
+import oracle.jdbc.xa.OracleXid;
+import oracle.jdbc.xa.client.OracleXADataSource;
+
+class XATransaction {
+ public static void main(String args[]) throws SQLException {
+ if (args.length != 3) {
+ System.out.println("usage: java XATransaction <host> <port> <service_name>");
+ System.exit(0);
+ }
+
+ String dbHostName = args[0];
+ String dbPort = args[1];
+ String dbServiceName = args[2];
+
+ try {
+ String dbURL1 = "jdbc:oracle:oci:@";
+ String dbURL2 = "jdbc:oracle:thin:@(description=(address=(host=" + dbHostName + ")(protocol=tcp)(port="
+ + dbPort + "))(connect_data=(service_name=" + dbServiceName + ")))";
+ // Set the URL for database # 1
+ try {
+ String url1FromProperties = System.getProperty("JDBC_URL");
+ if (url1FromProperties != null)
+ dbURL1 = url1FromProperties;
+ } catch (Exception e) {
+ // If there is any security exception, ignore it and use the
+ // default URL (dbURL1)
+ }
+ // Set the URL for database # 2
+ try {
+ String url2FromProperties = System.getProperty("JDBC_URL_2");
+ if (url2FromProperties != null)
+ dbURL2 = url2FromProperties;
+ } catch (Exception e) {
+ // If there is any security exception, ignore it and use the
+ // default URL (dbURL2)
+ }
+
+ // Create a OracleDataSource instance and set properties
+ OracleDataSource dataSource1 = new OracleDataSource();
+ dataSource1.setUser("HR");
+ dataSource1.setPassword("hr");
+ dataSource1.setURL(dbURL1);
+
+ Connection dbConn1 = dataSource1.getConnection();
+
+ // Prepare a statement to create the table
+ Statement stmt1 = dbConn1.createStatement();
+
+ // Create another OracleDataSource
+ OracleDataSource dataSource2 = new OracleDataSource();
+ dataSource2.setUser("HR");
+ dataSource2.setPassword("hr");
+ dataSource2.setURL(dbURL2);
+ Connection dbConn2 = dataSource2.getConnection();
+
+ Statement stmt2 = dbConn2.createStatement();
+
+ try {
+ stmt1.execute("delete from jobs where job_id = 'SC_STUFF'");
+ } catch (SQLException e) {
+ // Ignore an error here
+ }
+
+ try {
+ stmt2.execute("delete from regions where region_id > 100");
+ } catch (SQLException e) {
+ // Ignore an error here
+ }
+
+ // Create a XADataSource instance
+ OracleXADataSource xaDataSource1 = new OracleXADataSource();
+ xaDataSource1.setURL(dbURL1);
+ xaDataSource1.setUser("HR");
+ xaDataSource1.setPassword("hr");
+
+ OracleXADataSource xaDataSource2 = new OracleXADataSource();
+ xaDataSource2.setURL(dbURL2);
+ xaDataSource2.setUser("HR");
+ xaDataSource2.setPassword("hr");
+
+ // Get a XA connection to the underlying data source
+ XAConnection xaConn1 = xaDataSource1.getXAConnection();
+
+ // We can use the same data source
+ XAConnection xaConn2 = xaDataSource2.getXAConnection();
+
+ // Get the Physical Connections
+ Connection sqlConn1 = xaConn1.getConnection();
+ Connection sqlConn2 = xaConn2.getConnection();
+
+ // Get the XA Resources
+ XAResource xaR1 = xaConn1.getXAResource();
+ XAResource xaR2 = xaConn2.getXAResource();
+
+ // Create the Xids With the Same Global Ids
+ Xid xid1 = createXid(1);
+ Xid xid2 = createXid(2);
+
+ // Start the Resources
+ xaR1.start(xid1, XAResource.TMNOFLAGS);
+ xaR2.start(xid2, XAResource.TMNOFLAGS);
+
+ // Do something with conn1 and conn2
+ insertDataDB1(sqlConn1);
+ insertDataDB2(sqlConn2);
+
+ // END both the branches -- THIS IS MUST
+ xaR1.end(xid1, XAResource.TMSUCCESS);
+ xaR2.end(xid2, XAResource.TMSUCCESS);
+
+ // Prepare the RMs
+ int prepareMode1 = xaR1.prepare(xid1);
+ int prepareMode2 = xaR2.prepare(xid2);
+
+ System.out.println("Prepare mode chosent for xid 1 is " + prepareMode1);
+ System.out.println("Prepare mode chosent for xid 2 is " + prepareMode2);
+ // Same boolean variable commitAcceptance is used to confirm with
+ // both the database
+ // Only if both database give the acceptance it will start commit
+ // operation,
+ // either of them are not accepted, it will rollback transactions on
+ // both the database.
+ boolean commitAcceptance = true;
+
+ if (!((prepareMode1 == XAResource.XA_OK) || (prepareMode1 == XAResource.XA_RDONLY)))
+ commitAcceptance = false;
+
+ if (!((prepareMode2 == XAResource.XA_OK) || (prepareMode2 == XAResource.XA_RDONLY)))
+ commitAcceptance = false;
+
+ System.out.println("commitAcceptance from both the database is " + commitAcceptance);
+ System.out.println("Is resource manager same for both the XAResources? " + xaR1.isSameRM(xaR2));
+
+ // Commit / Rollback on DB1 based on the prepareMode and
+ // commitAcceptance
+ if (prepareMode1 == XAResource.XA_OK)
+ if (commitAcceptance)
+ xaR1.commit(xid1, false);
+ else
+ xaR1.rollback(xid1);
+
+ // Commit / Rollback on DB2 based on the prepareMode and
+ // commitAcceptance
+ if (prepareMode2 == XAResource.XA_OK)
+ if (commitAcceptance)
+ xaR2.commit(xid2, false);
+ else
+ xaR2.rollback(xid2);
+
+ // Close all the connections
+ sqlConn1.close();
+ sqlConn1 = null;
+ sqlConn2.close();
+ sqlConn2 = null;
+
+ xaConn1.close();
+ xaConn1 = null;
+ xaConn2.close();
+ xaConn2 = null;
+
+ ResultSet resultSet = stmt1.executeQuery("select job_id, job_title from jobs");
+ System.out.println("ncontents of table jobs:n job_id - job_title");
+ while (resultSet.next()) {
+ System.out.println(resultSet.getString(1) + " - " + resultSet.getString(2));
+ }
+
+ resultSet.close();
+ resultSet = null;
+
+ resultSet = stmt2.executeQuery("select region_id, region_name from regions order by region_id");
+ System.out.println("ncontents of table regions: n region_id - region_namen");
+ while (resultSet.next()) {
+ System.out.println(resultSet.getInt(1) + " - " + resultSet.getString(2));
+ }
+
+ // Close the resources
+ resultSet.close();
+ resultSet = null;
+
+ stmt1.close();
+ stmt1 = null;
+ stmt2.close();
+ stmt2 = null;
+
+ dbConn1.close();
+ dbConn1 = null;
+ dbConn2.close();
+ dbConn2 = null;
+
+ } catch (SQLException sqlEx) {
+ sqlEx.printStackTrace();
+ } catch (XAException xaEx) {
+ if (xaEx instanceof OracleXAException) {
+ System.out.println("XA Error is " + ((OracleXAException) xaEx).getXAError());
+ System.out.println("SQL Error is " + ((OracleXAException) xaEx).getOracleError());
+ }
+ }
+ }
+
+ static Xid createXid(int bids) throws XAException {
+ byte[] gid = new byte[1];
+ gid[0] = (byte) 9;
+ byte[] bid = new byte[1];
+ bid[0] = (byte) bids;
+ byte[] gtrid = new byte[64];
+ byte[] bqual = new byte[64];
+ System.arraycopy(gid, 0, gtrid, 0, 1);
+ System.arraycopy(bid, 0, bqual, 0, 1);
+ Xid xid = new OracleXid(0x1234, gtrid, bqual);
+ return xid;
+ }
+
+ private static void insertDataDB1(Connection conn) throws SQLException {
+ // Create a Statement
+ Statement stmt = conn.createStatement();
+
+ int rowCount = stmt.executeUpdate("insert into jobs values ('SC_STUFF', 'Security Stuff', null, null)");
+
+ System.out.println("No of rows Affected " + rowCount);
+
+ stmt.close();
+ stmt = null;
+ }
+
+ private static void insertDataDB2(Connection conn) throws SQLException {
+ // Create a Statement
+ Statement stmt = conn.createStatement();
+
+ int rowCount = stmt.executeUpdate("insert into regions values (101, 'Africa')");
+
+ System.out.println("No of rows Affected " + rowCount);
+
+ stmt.close();
+ stmt = null;
+ }
+}

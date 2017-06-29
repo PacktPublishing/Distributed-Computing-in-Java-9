@@ -1,0 +1,71 @@
+﻿2 way SSL implementation for web services :
+----------------------------------------------------------------------------------------------------------------
+
+package com;
+
+
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.annotation.WebFilter;
+
+@WebFilter("/*")
+public class SSLValidationFilter implements Filter {
+
+    @Override
+    public void init(FilterConfig arg0) throws ServletException {
+        // TODO Auto-generated method stub      
+    }
+
+    @Override
+    public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
+            throws IOException, ServletException {
+
+        boolean validSSLCall = false;
+        if (!req.getScheme().equals("https")) {
+            validSSLCall = true;
+        } else {
+        X509Certificate[] certificates = (X509Certificate[]) req.getAttribute("javax.servlet.request.X509Certificate");
+
+        for (X509Certificate clientCert: certificates) {
+            System.out.println("Certificate is : " + clientCert.toString());
+            String distinguishedName = clientCert.getSubjectX500Principal().getName();
+            LdapName ln;
+            try {
+                ln = new LdapName (distinguishedName);
+            for (Rdn relativeDN : ln.getRdns()) {
+                System.out.println("Relative DN name: " + relativeDN.getValue());
+                System.out.println("Relative DN Type: " + relativeDN.getType());
+                //Here you can put number of validations based on relative DN name, type as such.
+                if (relativeDN.getType()!= null && "CN".equals(relativeDN.getType())) {
+                    validSSLCall = true;               
+                }
+            }
+            } catch (InvalidNameException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        }
+        if(validSSLCall) {
+            chain.doFilter(req, resp);
+        } else {
+            throw new ServletException("Invalid SSL Call");
+        }
+    }
+
+    @Override
+    public void destroy() {
+        // TODO Auto-generated method stub      
+    }
+    
+}

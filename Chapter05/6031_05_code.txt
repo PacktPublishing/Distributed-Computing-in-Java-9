@@ -1,0 +1,323 @@
+﻿Multithreading :
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+public class SpawningThreads {
+
+ public static void main(String args[]){
+ int threadCount = 5;
+ Thread threadGroup [] = new Thread[threadCount];
+ for(int iter1=0; iter1<threadCount; iter1++){
+ threadGroup[iter1] = new Thread(new RunnableComponent(iter1));
+ threadGroup[iter1].start();
+ }
+ for(int iter2=0; iter2<threadCount; iter2++){
+ try{
+ threadGroup[iter2].join();
+ }catch (InterruptedException x){}
+ }
+ System.out.println("From the Master Thread Execution");
+ }
+ }
+ class RunnableComponent implements Runnable {
+ int iter3;
+ public RunnableComponent(int j) {
+ this.iter3 = j;
+ }
+ public void run() {
+ System.out.println("From the Spawned Thread Execution");
+ }
+ }
+
+ 
+ Synchronization :
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+public class SynchronizeThreads {
+
+ int threadNumber;
+ ThreadCounter threadCounter;
+ public SynchronizeThreads(int threadNumber,ThreadCounter threadCounter) {
+ this.threadNumber = threadNumber;
+ this.threadCounter=threadCounter;
+ }
+ public void ThreadBarrier() {
+ synchronized (threadCounter) {
+ threadCounter.sharedAccessCont++;
+ try {
+ if(threadCounter.sharedAccessCont != threadNumber) {
+ threadCounter.wait();
+ } else {
+ threadCounter.sharedAccessCont = 0;
+ threadCounter.notifyAll();
+ }
+ }
+ catch (InterruptedException e) {
+ System.out.println("From Synchronized block execution");
+ }
+ }
+ }
+ }
+ class ThreadCounter {
+ int sharedAccessCont;
+ public ThreadCounter(int sharedAccessCont) {
+ this.sharedAccessCont=sharedAccessCont;
+ }
+ }
+
+
+Spliterator interface :
+----------------------------------------------------------------------------------------------------------------
+
+Spliterator<T> trySplit();
+boolean tryAdvance(Consumer<? super T> action);
+
+
+Spliterator interface (2) :
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+import static java.util.Spliterators.spliterator;
+
+import java.util.Comparator;
+import java.util.Spliterator;
+import java.util.function.Consumer;
+
+public abstract class BaseFixedBatchSpliterator<T> implements Spliterator<T> {
+ private int groupCount;
+ private int properties;
+ private long estimatedSize;
+
+ // constructor with no paramters
+ public BaseFixedBatchSpliterator() {
+ // set the behaviour of this component
+ this(IMMUTABLE | ORDERED | NONNULL);
+ }
+
+ // constructor with single parameter properties
+ public BaseFixedBatchSpliterator(int properties) {
+ // set the behaviour of this component
+ this(properties, 128, Long.MAX_VALUE);
+ }
+
+ // constructor with two parameters, properties and groupcount
+ public BaseFixedBatchSpliterator(int properties, int groupCount) {
+ // set the behaviour of this component
+ this(properties, groupCount, Long.MAX_VALUE);
+ }
+
+ // constructor with multiple parameters
+ public BaseFixedBatchSpliterator(int properties, int groupCount, long estimatedSize) {
+ this.properties = properties | SUBSIZED;
+ this.groupCount = groupCount;
+ this.estimatedSize = estimatedSize;
+ }
+
+ static final class HandlingConsumer<T> implements Consumer<T> {
+ Object obj;
+
+ @Override
+ public void accept(T obj) {
+ this.obj = obj;
+ }
+ }
+
+ @Override
+ public int characteristics() {
+ return properties;
+ }
+
+ @Override
+ public long estimateSize() {
+ return estimatedSize;
+ }
+
+ @Override
+ public Comparator<? super T> getComparator() {
+ if (hasCharacteristics(SORTED))
+ return null;
+ throw new IllegalStateException();
+ }
+
+ @Override
+ public Spliterator<T> trySplit() {
+ final HandlingConsumer<T> holdingConsumer = new HandlingConsumer<>();
+ if (!tryAdvance(holdingConsumer))
+ return null;
+ final Object[] consumerBatch = new Object[groupCount];
+ int iterator = 0;
+ do
+ consumerBatch[iterator] = holdingConsumer.obj;
+ while (++iterator < groupCount && tryAdvance(holdingConsumer));
+ if (estimatedSize != Long.MAX_VALUE)
+ estimatedSize -= iterator;
+ return spliterator(consumerBatch, 0, iterator, characteristics() | SIZED);
+ }
+}
+
+
+Spliterator interface (3) :
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+import static java.util.stream.StreamSupport.stream;
+
+import java.util.Spliterator;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+public class SplitFixedBatchSpliterator<T> extends BaseFixedBatchSpliterator<T> {
+ private final Spliterator<T> iterSpl;
+
+ public static <T> SplitFixedBatchSpliterator<T> batchedSpliterator(Spliterator<T> toBundle, int groupCount) {
+ return new SplitFixedBatchSpliterator<>(toBundle, groupCount);
+ }
+
+ public SplitFixedBatchSpliterator(Spliterator<T> toBundle, int groupCount) {
+ super(toBundle.characteristics(), groupCount, toBundle.estimateSize());
+ this.iterSpl = toBundle;
+ }
+
+ @Override
+ public void forEachRemaining(Consumer<? super T> action) {
+ iterSpl.forEachRemaining(action);
+ }
+
+ @Override
+ public boolean tryAdvance(Consumer<? super T> action) {
+ return iterSpl.tryAdvance(action);
+ }
+
+ public static <T> Stream<T> withBatchSize(Stream<T> in, int groupCount) {
+ return stream(batchedSpliterator(in.spliterator(), groupCount), true);
+ }
+
+}
+
+
+Spliterator interface (4) :
+----------------------------------------------------------------------------------------------------------------
+
+package threads;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static threads.SplitFixedBatchSpliterator.withBatchSize;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
+
+public class SplitIteratorSample {
+
+ static double drop;
+ private static final int NUMBER_THREE = 3, NUMBER_TEN = 10;
+
+ public static void main(String[] args) throws IOException {
+ final Path inputFilePath = generateInput();
+ for (int i = 0; i < NUMBER_THREE; i++) {
+ System.out.println("Begin executing the jdk streams");
+ monitoringExeuction(Files.lines(inputFilePath));
+ System.out.println("Begin executing the fixed batch streams");
+ monitoringExeuction(withBatchSize(Files.lines(inputFilePath), NUMBER_TEN));
+ }
+ }
+
+ private static Path generateInput() throws IOException {
+ final Path filePath = Paths.get("fileToRead.txt");
+ try (PrintWriter pw = new PrintWriter(Files.newBufferedWriter(filePath))) {
+ for (int iterC = 0; iterC < 6000; iterC++) {
+ final String lineText = String.valueOf(System.nanoTime());
+ for (int j = 0; j < 15; j++)
+ pw.print(lineText);
+ pw.println();
+ }
+ }
+ return filePath;
+ }
+
+ private static long executeStream(String stream) {
+ final long localBeginTimeOfExecution = System.nanoTime();
+ double dbl = 0;
+ for (int iterA = 0; iterA < stream.length(); iterA++)
+ for (int iterB = 0; iterB < stream.length(); iterB++)
+ dbl += Math.pow(stream.charAt(iterA), stream.charAt(iterB) / 32.0);
+ drop += dbl;
+ return System.nanoTime() - localBeginTimeOfExecution;
+ }
+
+ private static void monitoringExeuction(Stream<String> streamInput) throws IOException {
+ final long beginOfExecution = System.nanoTime();
+ try (Stream<String> lineOfExecutions = streamInput) {
+ final long overallTimeOfExeuction = lineOfExecutions.parallel()
+ .mapToLong(SplitIteratorSample::executeStream).sum();
+ final double cpuExecutionTime = overallTimeOfExeuction, actualTime = System.nanoTime() - beginOfExecution;
+ final int processors = Runtime.getRuntime().availableProcessors();
+ System.out.println(" Processors : " + processors);
+ System.out.format(" CPU Execution time : %.2f sn", cpuExecutionTime / SECONDS.toNanos(1));
+ System.out.format(" Actual Execution time : %.2f sn", actualTime / SECONDS.toNanos(1));
+ System.out.format("CPU utilization percentage : %.2f%%nn",
+ 100.0 * cpuExecutionTime / actualTime / processors);
+ }
+ }
+
+}
+
+
+Parallel Stream Processing :
+----------------------------------------------------------------------------------------------------------------
+
+for (int i :myList) {
+result+= i;
+}
+
+Parallel Stream Processing (2) :
+----------------------------------------------------------------------------------------------------------------
+
+myList.stream().sum();
+
+Parallel Stream Processing (3) :
+----------------------------------------------------------------------------------------------------------------
+
+myList.parallelStream().sum();
+
+
+Java 9 updates for Processing API :
+----------------------------------------------------------------------------------------------------------------
+
+private static int getOwnProcessID(){
+    return ProcessHandle.current().getPid();
+}
+
+
+Java 9 updates for Processing API (2):
+----------------------------------------------------------------------------------------------------------------
+
+private static void listProcesses(){
+ProcessHandle.allProcesses().forEach((h) -> printHandle(h));
+}     
+
+private static void printHandle(ProcessHandle procHandle) {
+    // get info from handle
+    ProcessHandle.Info procInfo = procHandle.info();
+    System.out.println("PID: " + procHandle.getPid());
+    System.out.print("Start Parameters: ");
+        String[] empty = new String[]{"-"};   
+    for (String arg : procInfo.arguments().orElse(empty)) {
+        System.out.print(arg + " ");
+    }
+    System.out.println();
+    System.out.println("Path: " + procInfo.command().orElse("-"));
+    System.out.println("Start: " + procInfo.startInstant().
+             orElse(Instant.now()).toString());
+    System.out.println("Runtime: " + procInfo.totalCpuDuration().
+            orElse(Duration.ofMillis(0)).toMillis() + "ms");
+    System.out.println("User: " + procInfo.user());
+}
