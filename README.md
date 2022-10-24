@@ -31,3 +31,7 @@ To follow along with this book, you’ll need a computer with an internet connec
 
 * [Functional Programming with Streams in Java 9 [Video]](https://www.packtpub.com/application-development/functional-programming-streams-java-9-video?utm_source=github&utm_medium=repository&utm_campaign=9781787283060)
 
+### Download a free PDF
+
+ <i>If you have already purchased a print or Kindle version of this book, you can get a DRM-free PDF version at no cost.<br>Simply click on the link to claim your free PDF.</i>
+<p align="center"> <a href="https://packt.link/free-ebook/9781787126992">https://packt.link/free-ebook/9781787126992 </a> </p>
